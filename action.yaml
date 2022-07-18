@@ -1,0 +1,41 @@
+name: Chart Release
+description: Action to release a Helm Chart
+inputs:
+  pat:
+    description: PAT for accessing the chart repo
+    required: true
+  new-version:
+    description: The new version to bump to
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+      with:
+        repository: beezlabs-org/helm-releases
+        token: ${{ inputs.pat }}
+
+    - name: Download package
+      uses: actions/download-artifact@v3
+      with:
+        name: helm-chart
+
+    - name: Copy helm chart package
+      run: |
+        mkdir -p ./${{ github.event.repository.name }}
+        mv -f ./${{ github.event.repository.name }}-${{ inputs.new-version }}.tgz ./${{ github.event.repository.name }}/
+        helm repo index . --url https://charts.beezlabs.app
+      shell: bash
+    
+    - name: Commit Changes
+      env:
+        GIT_AUTHOR_NAME: Beez Innovation Labs
+        GIT_COMMITTER_NAME: Beez Innovation Labs
+        GIT_AUTHOR_EMAIL: github@beezlabs.com
+        GIT_COMMITTER_EMAIL: github@beezlabs.com
+      run: |
+        git add -A
+        git diff-index --quiet HEAD || git commit -m "feat: release chart for ${{ github.event.repository.name }}" 
+        git push
+      shell: bash
